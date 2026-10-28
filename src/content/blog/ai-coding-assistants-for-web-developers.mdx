@@ -1,0 +1,177 @@
+AI coding assistants have moved from novelty to normal part of professional web
+development. Used well, they compress routine work — boilerplate, tests, small
+refactors, code explanation — dramatically. Used carelessly, they produce code that
+*looks* right, passes a glance, and fails in production. This guide takes a
+grounded look at what these tools actually change for web developers, which
+workflows benefit most, and the review habits that keep codebases safe.
+
+All the tools mentioned are covered in depth in our [AI coding tools
+directory](/ai-tools/category/ai-coding).
+
+## What actually changed with AI coding assistants
+
+Three things, specifically:
+
+1. **Completion became context-aware.** Early autocompleters finished the current
+   line. Current assistants see your file, your imports, and often your whole
+   repository, so suggestions match your patterns, not just syntax.
+2. **Chat became codebase-aware.** Instead of searching Stack Overflow, you ask
+   "where does this app validate payments?" and get an answer grounded in your
+   actual files.
+3. **Editing became multi-file.** A single instruction can produce coordinated
+   changes across many files — a rename, a new endpoint wired end to end, a test
+   suite for a module.
+
+The constant: **you remain responsible for every line**. Assistants raise your
+throughput, not your accountability.
+
+## Where assistants genuinely help web developers
+
+Ranked by real-world payoff for typical web work:
+
+- **Explaining unfamiliar code.** Onboarding to a legacy codebase is the quiet
+  killer of developer time; asking an assistant to explain a gnarly module with
+  repo context shortens it substantially.
+- **Test writing.** Generating test cases for existing logic is high-value,
+  low-risk output — the tests either pass against real behavior or immediately
+  reveal the gap.
+- **Boilerplate and repetitive patterns.** Forms, CRUD endpoints, config,
+  translations between formats — mechanical work assistants do at near-zero error
+  rate *when the pattern is clear*.
+- **Small scoped refactors.** Renames, extracting functions, migrating an API
+  call pattern across a codebase.
+- **Documentation.** Drafting READMEs and docstrings from code is tedious for
+  humans and natural for models.
+
+And where to keep your guard up:
+
+- **Security-sensitive code.** Auth, crypto, input validation, payment flows.
+  Assistants reproduce common-but-wrong patterns with total confidence.
+- **Performance-critical paths.** AI optimizes for plausibility, not profiling.
+- **Anything with subtle business rules.** The model does not know your
+  business; your tests and specs do.
+
+## The three shapes of tool, today
+
+### Classic autocomplete (GitHub Copilot, Tabnine)
+
+Inline completions in your existing editor, plus chat. The lightest-touch option:
+your workflow barely changes, and suggestions arrive as you type. Copilot's
+strength is ecosystem — it works across every major editor and integrates with
+GitHub's platform (PR summaries, issue handling). Tabnine's differentiator is
+privacy: deployment options that keep your code inside your infrastructure, which
+matters for regulated teams.
+
+*Best for:* developers happy with their current editor who want steady, low-drama
+productivity gains.
+
+### AI-first editors (Cursor, Windsurf)
+
+Full editors (VS Code forks) rebuilt around AI. Chat that is indexed against your
+whole repository, and agent modes that plan and execute multi-file edits from one
+instruction. The productivity jump for experienced developers is real — and so is
+the temptation to accept a large diff you did not fully read.
+
+*Best for:* developers willing to switch editors and build the habit of reviewing
+agent output like a senior reviews a junior's PR: closely.
+
+### Chat assistants used alongside (ChatGPT, Claude)
+
+General assistants used deliberately — paste a module, ask for a refactor, or
+debug an error message. Claude's large context window suits whole-file and
+multi-file reasoning; ChatGPT's ecosystem makes quick snippet work frictionless.
+Less integrated than the above, but zero commitment.
+
+*Best for:* dipping in for specific problems without changing your setup.
+
+The current details — pricing models, strengths, and verified limitations for
+each — are in the [AI coding category](/ai-tools/category/ai-coding).
+
+## The review habits that keep you safe
+
+The failure mode of AI assistance is not bad code; it is *plausible* code accepted
+unread. A short, non-negotiable checklist prevents it:
+
+1. **Read every line of the diff.** If the diff is too large to read, split the
+   task. This single rule eliminates most AI-induced incidents.
+2. **Never accept a dependency you have not checked.** Assistants happily invent
+   package names (a real supply-chain risk) or add dependencies you do not need.
+3. **Tests before trust.** For any non-trivial generated logic, write or generate
+   the failing test first, then the implementation. Behavior is verified, not
+   assumed.
+4. **Treat security code as yours.** Review auth, validation, and data handling
+   as if the AI had never seen it — because effectively, it has not seen your
+   attacker.
+5. **Watch the license on generated code.** Rare, but suggested code can resemble
+   licensed training material; keeping generation settings conservative and
+   reviewing significant blocks keeps this manageable.
+
+A useful mental test before accepting a suggestion: *could I explain this line to
+a colleague in one sentence?* If not, you have adopted complexity, not saved time.
+
+## A realistic workflow example
+
+Consider a typical small task: adding an email field to a contact form, validating
+it server-side, and storing it. A sensible split:
+
+- **Assistant:** scaffolds the form change, writes the validation schema, drafts
+  the migration, generates the test cases.
+- **You:** confirm the validation rules actually match the product's requirements,
+  check the migration against real data, verify the tests exercise failure paths,
+  and read the diff end to end.
+
+That is a fifteen-minute task instead of an hour — with the judgment portion of
+the work still done by the person accountable for it.
+
+## FAQ
+
+<details>
+<summary>Will AI coding assistants replace web developers?</summary>
+
+They change the job's shape rather than eliminate it. The parts being automated —
+recall of syntax and patterns, boilerplate production — were never the hard part.
+The hard part was and remains understanding what to build, why, and how it can
+fail. Developers who use assistants well are outpacing developers who do not;
+that is the actual competitive dynamic.
+
+</details>
+
+<details>
+<summary>Which assistant should I start with as a web developer?</summary>
+
+Start with the one matching your tolerance for change: keep your editor and add
+autocomplete, or switch to an AI-first editor if you want the deeper workflow.
+Test on your real work for two weeks — a representative repo, real tasks — before
+deciding. Every tool in our [coding directory](/ai-tools/category/ai-coding) has a
+freemium or trial path for exactly this.
+
+</details>
+
+<details>
+<summary>Is my proprietary code safe in these tools?</summary>
+
+It depends on the tool and plan. Consumer tiers may use interactions to improve
+models; business tiers generally contract out of training, and Tabnine offers
+fully private deployment. If you work under client NDAs, use business tiers or
+private deployment — and verify the current policy directly, because these terms
+change.
+
+</details>
+
+<details>
+<summary>How do I stop over-relying on the suggestions?</summary>
+
+Treat suggestions like a pull request from a talented stranger: read before
+accepting, test before trusting, and periodically implement something small
+entirely yourself. The developers who benefit most long-term pair the assistant
+with deliberate practice, not instead of it.
+
+</details>
+
+## Next step
+
+Compare the verified options in the [AI coding tools directory](/ai-tools/category/ai-coding)
+and pick one to trial on real work this week. Building a website — or rebuilding
+one — is also exactly the kind of project our [Landing Page
+Development](/services/landing-page-development) service handles: modern stack,
+clean accessible code, handed over completely.

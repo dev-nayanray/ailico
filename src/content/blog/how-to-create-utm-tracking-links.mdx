@@ -1,0 +1,159 @@
+You launched a newsletter, ran a social push, and maybe paid for a couple of ads.
+Then you opened your analytics and saw the traffic source report: a wall of
+"direct / none". That is what UTM parameters exist to fix. This guide explains what
+each parameter does, the naming conventions that keep reports clean, and how to
+build consistent tagged links in about thirty seconds.
+
+You can build your first tagged link right now in our [free UTM link
+builder](/free-tools/utm-builder) — it validates inputs and previews the final URL
+as you type.
+
+## What UTM parameters are
+
+UTM parameters are five standard query tags you append to a URL. When someone
+clicks the tagged link, analytics platforms such as Google Analytics, Matomo, and
+Plausible read the tags and attribute the visit to a specific campaign — so your
+reports show *which* effort produced the visitor, instead of lumping everything
+into "direct".
+
+The five parameters:
+
+| Parameter | Required? | What it answers | Examples |
+| --- | --- | --- | --- |
+| `utm_source` | Yes | Where is the link published? | `newsletter`, `google`, `linkedin` |
+| `utm_medium` | Yes | What kind of marketing is it? | `email`, `cpc`, `social`, `referral` |
+| `utm_campaign` | Yes | Which specific promotion? | `spring-sale-2026`, `launch` |
+| `utm_term` | No | Which keyword (paid search)? | `running+shoes` |
+| `utm_content` | No | Which creative or variant? | `banner-a`, `cta-top` |
+
+Source + medium + campaign is the minimum for usable reports. Term matters mainly
+for paid search; content is how you compare creative variants against each other.
+
+## How to build a UTM link correctly
+
+1. **Start with the destination URL** — the page you want people to land on, in
+   full, including `https://`.
+2. **Add the three required tags** with values that describe the placement, not
+   the business. A link in your weekly newsletter is `utm_source=newsletter`,
+   `utm_medium=email`, `utm_campaign=october-week-2`.
+3. **URL-encode values** — spaces become `%20`. Any proper builder does this for
+   you automatically (hand-editing invites typos).
+4. **Test the finished link** before publishing: open it and confirm the page
+   loads and the tags survive any redirect.
+5. **Record it.** Keep a simple sheet of the links you create — your future self
+   compiling the monthly report will thank you.
+
+A finished link looks like this:
+
+```text
+https://example.com/spring-offer?utm_source=newsletter&utm_medium=email&utm_campaign=spring-sale-2026
+```
+
+Our [UTM builder](/free-tools/utm-builder) produces exactly this format, with
+presets for common sources, inline validation of required fields, and a test-link
+button.
+
+## The naming conventions that keep reports clean
+
+The single biggest UTM problem is not technical — it is inconsistency. Analytics
+platforms treat values as case-sensitive exact strings, so these three links all
+report as *different* sources:
+
+```text
+?utm_source=LinkedIn    ← capital L
+?utm_source=linkedin    ← clean
+?utm_source=li          ← abbreviation someone invented once
+```
+
+Adopt three rules before your first campaign and never change them:
+
+1. **Everything lowercase.** `newsletter`, never `Newsletter`.
+2. **No spaces.** Use hyphens: `spring-sale`, not `spring sale` (which encodes to
+   the unreadable `spring%20sale`).
+3. **One canonical name per source.** Write the list down: `newsletter`, `google`,
+   `facebook`, `instagram`, `linkedin`, `youtube`, `twitter`. If a source is not
+   on the list, add it to the list first, then use it.
+
+A useful pattern for campaign names is `topic-variant` or `topic-month` —
+`ai-tools-report-oct` is recognizable in a report six months later; `campaign2`
+is not.
+
+## Common mistakes to avoid
+
+- **Tagging internal links.** UTMs on your own site's navigation overwrite the
+  visitor's original source. Tag only links on *external* channels (email, social,
+  ads, partners).
+- **UTM on the homepage "just in case."** Send each campaign to the most specific
+  relevant page. It makes reporting — and retargeting — far cleaner.
+- **Renaming mid-campaign.** Changing `spring-sale` to `springsale` halfway
+  through splits one campaign into two rows. Pick names before launch and stick
+  with them.
+- **Forgetting redirects.** If your link shortener or CMS strips query parameters
+  on redirect, the tags are lost. Always test the final URL, post-redirect.
+
+## Do UTM links affect SEO?
+
+UTM parameters do not affect your page speed, and search engines generally handle
+them, but there is one hygiene step worth taking: ensure your pages carry a
+**canonical tag** pointing at the clean URL. Then any tagged variant of the
+address (`/offer?utm_source=...`) consolidates to the canonical version in search
+indexes, while your analytics still reads the campaign tags. If you use WordPress,
+most SEO plugins emit canonicals automatically; our [Website Quick
+Fix](/services/website-quick-fix) includes checking exactly this kind of metadata
+issue.
+
+## FAQ
+
+<details>
+<summary>Do I need to configure anything in Google Analytics for UTMs to work?</summary>
+
+No. Universal properties and GA4 read standard UTM parameters automatically on
+any incoming click. The only requirement is that the tags are present and
+correctly spelled on the destination URL.
+
+</details>
+
+<details>
+<summary>What is the difference between utm_source and utm_medium?</summary>
+
+Source is the specific origin (google, newsletter, linkedin). Medium is the
+channel category (cpc, email, social). One medium groups many sources: `social`
+covers facebook, instagram, and linkedin. In reports, "source / medium" together
+answer where the visitor came from and via what kind of marketing.
+
+</details>
+
+<details>
+<summary>Are shortened links (bit.ly etc.) compatible with UTMs?</summary>
+
+Yes — add the UTM parameters *before* shortening, and verify the shortener passes
+query parameters through (the major ones do). Test the final short link: the
+landing URL must still contain your tags after all redirects.
+
+</details>
+
+<details>
+<summary>Can I see UTM data without Google Analytics?</summary>
+
+Yes. Most privacy-focused analytics tools (Matomo, Plausible, Fathom) read UTM
+tags natively. Even server logs show the query string, though you will be doing
+more manual work there.
+
+</details>
+
+<details>
+<summary>How many UTM links is too many?</summary>
+
+There is no hard limit, but every distinct combination is a new row in reports.
+Prefer a small set of well-named links over dozens of near-duplicates — another
+reason to keep a canonical naming sheet.
+
+</details>
+
+## Next step
+
+Open the [UTM link builder](/free-tools/utm-builder), paste your destination URL,
+and create your first tagged link with the conventions above. If you would rather
+hand the whole measurement setup — links, naming, dashboards — to someone else,
+our [AI Workflow Setup](/services/ai-workflow-setup) documents a repeatable
+campaign-tracking workflow your team can run on its own.

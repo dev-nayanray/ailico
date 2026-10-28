@@ -1,0 +1,156 @@
+If you have ever pasted a JSON file into a parser and gotten back something like
+`Unexpected token } in JSON at position 412`, you know the frustration: the message
+tells you there is a problem, but not where to look. This guide shows you how to
+validate JSON quickly, how to read those error messages so they actually point at
+the broken line, and the habits that keep your JSON valid in the first place.
+
+You can follow along with any JSON file — API responses, config files, exported
+data — using our [free JSON formatter and validator](/free-tools/json-formatter),
+which runs entirely in your browser.
+
+## What "valid JSON" actually means
+
+JSON is defined by a strict grammar (RFC 8259). A document is valid only when every
+rule holds. The rules that trip people up most often:
+
+- **Strings use double quotes only.** `'hello'` is invalid; `"hello"` is valid.
+- **Keys must be quoted strings.** `{name: "x"}` fails; `{"name": "x"}` passes.
+- **No trailing commas.** `["a", "b",]` is invalid — remove the comma after `"b"`.
+- **No comments.** `// note` and `/* note */` are not part of the JSON grammar.
+- **No newlines inside strings.** Break a string across lines and it stops being a
+  string; escape newlines as `\n` instead.
+- **Numbers have no leading zeros** and booleans/null are lowercase (`true`,
+  `false`, `null` — not `True`).
+
+Notice what is *not* in the list: duplicate keys. Most parsers accept them quietly
+and keep the last value — a classic source of "it works but wrong data" bugs, and a
+good reason to validate with a tool that warns about them rather than one that only
+checks syntax.
+
+## How to validate JSON in seconds
+
+The fastest path for everyday work is a browser-based validator:
+
+1. Open the [JSON formatter and validator](/free-tools/json-formatter).
+2. Paste your document into the input area.
+3. Press **Validate**. A green banner means the document is well-formed; a red
+   banner shows the error with its **line and column**.
+4. Press **Format** to pretty-print the document — indentation makes structural
+   problems (a missing brace, an unclosed array) visually obvious.
+5. Press **Copy** to take the cleaned result back into your project.
+
+Why line-and-column matters: the browser's parser only reports a *character
+position* (for example, position 412), which is nearly useless in a 500-line file.
+A good validator converts that position into `line 18, column 7` so you can jump
+straight there in your editor.
+
+<details>
+<summary>Prefer the command line? Two one-liners.</summary>
+
+With Node.js installed, validate a file and print a formatted version:
+
+```bash
+node -e "JSON.parse(require('fs').readFileSync('data.json','utf8')); console.log('valid')"
+```
+
+With [jq](https://jqlang.github.io/jq/) installed, pretty-print (it errors on invalid
+input):
+
+```bash
+jq . data.json
+```
+
+Both are strict about the JSON grammar, so they catch the same class of errors as
+the browser tool — just without the click.
+</details>
+
+## The five most common JSON errors and their fixes
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `Unexpected token }` | Trailing comma before `}` | Delete the comma after the last item |
+| `Unexpected token 'n'` | Unquoted key or `null` typo (`Null`) | Quote keys; use lowercase `null` |
+| `Unexpected end of JSON input` | Truncated file or unclosed `{`/`[` | Count and match your braces/brackets |
+| `Unexpected token /` | A `//` or `/* */` comment | Remove it — JSON has no comments |
+| `Bad escaped character` | `\` followed by an invalid character | Use `\\` for a literal backslash |
+
+A quick practical trick for the "unclosed brace" class of error: format the
+document. Pretty-printing indents each nesting level, so the line where indentation
+collapses unexpectedly is usually where a bracket went missing.
+
+## JSON vs. JSON5 vs. JSONC (why your file "works" in one tool but fails in another)
+
+Some tools accept relaxed dialects, which causes confusing situations where a file
+loads fine in one application and fails in another:
+
+- **JSONC** (JSON with comments) is a Visual Studio Code convention — comments and
+  trailing commas are allowed in `tsconfig.json` and `settings.json`, but the file
+  is not valid standard JSON.
+- **JSON5** is a broader proposal: unquoted keys, single quotes, comments, and more.
+
+When a file will only ever be read by those tools, the relaxed dialect is fine. The
+moment the file is consumed by a strict parser — an API, a build script, a runtime
+`JSON.parse` — validate it against the strict standard. That is exactly what the
+[validator](/free-tools/json-formatter) does, matching how browsers and servers
+parse JSON.
+
+## Habits that prevent broken JSON
+
+- **Let the machine write it.** Serialize with `JSON.stringify` (JavaScript),
+  `json.dumps` (Python), or your language's equivalent instead of hand-writing
+  files. Generated JSON is valid JSON.
+- **Validate before you deploy.** Add a validation step in CI — a one-line Node
+  script (above) fails the build on any invalid file.
+- **Use schema validation for configs.** For important configuration, define a
+  JSON Schema and validate against it; syntax validation then catches *shape*
+  errors (missing fields, wrong types), not just broken grammar.
+- **Keep files small.** Huge JSON documents are hard to review; split data into
+  logical files instead.
+
+## FAQ
+
+<details>
+<summary>Is JSON validation different from JSON linting?</summary>
+
+Practically, "lint" usually means the same thing here: checking a document against
+the JSON grammar and reporting problems. Some linters add extra checks beyond the
+grammar, such as duplicate-key detection, which strict parsers skip.
+
+</details>
+
+<details>
+<summary>Can I validate JSON with sensitive data in it?</summary>
+
+With a browser-based tool like ours, yes — validation runs locally in JavaScript
+and the content never leaves your device. Avoid pasting secrets into server-side
+"pretty print" websites you do not control; check that a tool explicitly processes
+data client-side before you trust it with API responses or config files.
+
+</details>
+
+<details>
+<summary>Why does my JSON fail after I edit it in a word processor?</summary>
+
+Word processors substitute "smart quotes" (`“ ”`) for straight quotes (`" "`) and
+may insert non-breaking spaces. Both break the JSON grammar. Edit JSON in a code
+editor, which keeps characters literal.
+
+</details>
+
+<details>
+<summary>What is the maximum size JSON can be?</summary>
+
+The grammar sets no size limit, but practical limits come from the software
+reading it — browsers, servers, and APIs each impose their own. Our browser tool
+caps input at 1 MB to keep the tab responsive; for anything larger, use the
+command-line options above.
+
+</details>
+
+## Next step
+
+Paste your problem file into the [JSON formatter and validator](/free-tools/json-formatter)
+now — the line-and-column error will point you at the exact character to fix. And
+if you regularly move data between systems and want the pipeline automated
+properly, our [AI Workflow Setup](/services/ai-workflow-setup) service designs and
+documents exactly that kind of repeatable process.
