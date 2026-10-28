@@ -8,7 +8,7 @@ import {
   type PricingModel,
   toolCategories,
   pricingLabels,
-} from "@/lib/tools";
+} from "@/data/tools";
 import { cn } from "@/lib/utils";
 
 type PricingFilter = "all" | PricingModel;

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CategoryBadge } from "@/components/ui/badge";
-import { type AiTool, getCategoryBySlug, pricingLabels } from "@/lib/tools";
+import { type AiTool, getCategoryBySlug, pricingLabels } from "@/data/tools";
 
 export function ToolCard({ tool }: { tool: AiTool }) {
   const category = getCategoryBySlug(tool.category);

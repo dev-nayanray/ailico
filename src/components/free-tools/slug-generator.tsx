@@ -4,29 +4,13 @@ import { useMemo, useState } from "react";
 import { Eraser } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
-import { trackEvent } from "@/lib/track";
+import { trackEvent } from "@/lib/analytics/track";
+import { slugify } from "@/lib/free-tools/slugify";
 import { cn } from "@/lib/utils";
-
-function slugify(input: string, separator: string, lowerCase: boolean, maxLength: number): string {
-  let text = input.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (lowerCase) text = text.toLowerCase();
-  text = text
-    .replace(/[''"]/g, "")
-    .replace(/&/g, " and ")
-    .replace(/[^A-Za-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, separator);
-  if (maxLength > 0 && text.length > maxLength) {
-    text = text.slice(0, maxLength);
-    const lastSeparator = text.lastIndexOf(separator);
-    if (lastSeparator > 0) text = text.slice(0, lastSeparator);
-  }
-  return text;
-}
 
 export function SlugGenerator() {
   const [input, setInput] = useState("");
-  const [separator, setSeparator] = useState("-");
+  const [separator, setSeparator] = useState<"-" | "_">("-");
   const [lowerCase, setLowerCase] = useState(true);
   const [maxLength, setMaxLength] = useState(80);
 
@@ -76,11 +60,11 @@ export function SlugGenerator() {
             <span className="text-sm text-ink-soft" id="separator-label">
               Separator
             </span>
-            <div className="flex overflow-hidden rounded-lg border border-line" role="group" aria-labelledby="separator-label">
-              {[
-                { value: "-", label: "hyphen -" },
-                { value: "_", label: "underscore _" },
-              ].map((option) => (
+          <div className="flex overflow-hidden rounded-lg border border-line" role="group" aria-labelledby="separator-label">
+            {([
+              { value: "-", label: "hyphen -" },
+              { value: "_", label: "underscore _" },
+            ] as const).map((option) => (
                 <button
                   key={option.value}
                   type="button"

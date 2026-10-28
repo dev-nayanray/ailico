@@ -5,14 +5,24 @@ export interface PostMeta {
   title: string;
   description: string;
   date: string;
+  /** Optional — set when an article is substantively revised. */
+  updated?: string;
   category: string;
+  /** Displayed byline. Defaults to the AIlico Editorial byline. */
+  author?: string;
+  /** Drafts are excluded from routes, lists, RSS, and the sitemap. */
+  status?: "draft" | "published";
   /** Approximate reading time, calculated from the final draft. */
   readingMinutes: number;
 }
 
+export const DEFAULT_AUTHOR = "AIlico Editorial";
+
 /**
  * Article metadata lives here; bodies live in src/content/blog/<slug>.mdx.
- * Add a new entry here and create the matching .mdx file to publish.
+ * To publish: add an entry with status "published" (the default) and create
+ * the matching .mdx file. Set status: "draft" to hide a post everywhere
+ * while keeping it in the repo.
  */
 export const posts: PostMeta[] = [
   {
@@ -55,7 +65,8 @@ export const posts: PostMeta[] = [
 
 const loaders: Record<string, () => Promise<{ default: ComponentType }>> = {
   "how-to-validate-json-online": () => import("@/content/blog/how-to-validate-json-online.mdx"),
-  "how-to-create-utm-tracking-links": () => import("@/content/blog/how-to-create-utm-tracking-links.mdx"),
+  "how-to-create-utm-tracking-links": () =>
+    import("@/content/blog/how-to-create-utm-tracking-links.mdx"),
   "best-ai-writing-tools-for-freelancers": () =>
     import("@/content/blog/best-ai-writing-tools-for-freelancers.mdx"),
   "ai-coding-assistants-for-web-developers": () =>
@@ -66,8 +77,24 @@ export function getPostBySlug(slug: string): PostMeta | undefined {
   return posts.find((post) => post.slug === slug);
 }
 
+/** Only published posts — used by routes, RSS, and the sitemap. */
+export function publishedPosts(): PostMeta[] {
+  return posts.filter((post) => (post.status ?? "published") === "published");
+}
+
 export function sortedPosts(): PostMeta[] {
-  return [...posts].sort((a, b) => (a.date < b.date ? 1 : -1));
+  return [...publishedPosts()].sort((a, b) => (a.date < b.date ? 1 : -1));
+}
+
+/** Previous (older) and next (newer) posts around a given slug, by date. */
+export function postNeighbors(slug: string): { newer?: PostMeta; older?: PostMeta } {
+  const ascending = [...publishedPosts()].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const index = ascending.findIndex((post) => post.slug === slug);
+  if (index === -1) return {};
+  return {
+    older: index > 0 ? ascending[index - 1] : undefined,
+    newer: index < ascending.length - 1 ? ascending[index + 1] : undefined,
+  };
 }
 
 export async function loadPostComponent(slug: string): Promise<ComponentType | null> {

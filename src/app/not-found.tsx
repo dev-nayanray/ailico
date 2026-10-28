@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
-import { freeTools } from "@/lib/free-tools";
+import { freeTools } from "@/data/free-tools";
 
 export default function NotFound() {
   return (

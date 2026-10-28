@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Check, ExternalLink, ShieldCheck, ThumbsDown, ThumbsUp, Users, X } from "lucide-react";
-import { aiTools, getToolBySlug, getCategoryBySlug, pricingLabels, relatedTools } from "@/lib/tools";
+import { aiTools, getToolBySlug, getCategoryBySlug, pricingLabels, relatedTools } from "@/data/tools";
 import { ToolCard } from "@/components/tool-card";
 import { ButtonLink } from "@/components/ui/button";
 import { CategoryBadge } from "@/components/ui/badge";

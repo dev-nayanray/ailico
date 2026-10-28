@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { services, budgetRanges } from "@/lib/services";
-import { trackEvent } from "@/lib/track";
+import { services, budgetRanges } from "@/data/services";
+import { trackEvent } from "@/lib/analytics/track";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -268,3 +268,4 @@ export function ContactForm({ defaultService = "" }: { defaultService?: string }
     </form>
   );
 }
+ 

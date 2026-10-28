@@ -2,19 +2,19 @@
 
 /**
  * Lightweight, privacy-conscious event tracking.
- * Sends anonymous event names (plus small, non-personal metadata) to /api/track,
- * where they are counted server-side. No cookies, no fingerprinting, no PII.
+ * Sends anonymous event names (plus small, non-personal metadata) to
+ * /api/track, where they are counted server-side. No cookies, no
+ * fingerprinting, no PII. Event vocabulary: src/lib/analytics/events.ts.
  */
 
-export type TrackEventName =
-  | "search_submit"
-  | "tool_used"
-  | "copy_action"
-  | "contact_submit"
-  | "cta_click"
-  | "outbound_click";
+import type { TrackEventName } from "@/lib/analytics/events";
 
-export function trackEvent(event: TrackEventName, meta?: Record<string, string | number | boolean>) {
+export type { TrackEventName };
+
+export function trackEvent(
+  event: TrackEventName,
+  meta?: Record<string, string | number | boolean>
+) {
   try {
     const payload = JSON.stringify({ event, meta: meta ?? {} });
     if (typeof navigator !== "undefined" && "sendBeacon" in navigator) {

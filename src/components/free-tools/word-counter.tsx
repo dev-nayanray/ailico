@@ -3,16 +3,8 @@
 import { useMemo, useState } from "react";
 import { Eraser } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { trackEvent } from "@/lib/track";
-
-const STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "but", "by", "can", "did", "do", "does",
-  "for", "from", "had", "has", "have", "he", "her", "his", "i", "if", "in", "into",
-  "is", "it", "its", "just", "me", "my", "no", "not", "of", "on", "or", "our", "she",
-  "so", "some", "that", "the", "their", "them", "then", "there", "these", "they",
-  "this", "to", "too", "up", "us", "very", "was", "we", "were", "what", "when",
-  "where", "which", "while", "who", "why", "will", "with", "would", "you", "your",
-]);
+import { trackEvent } from "@/lib/analytics/track";
+import { analyzeText, topKeywords, formatDuration } from "@/lib/free-tools/text-stats";
 
 const SAMPLE_TEXT =
   "Artificial intelligence tools are changing how small businesses work. " +
@@ -20,59 +12,11 @@ const SAMPLE_TEXT =
   "The challenge is choosing well: with thousands of options, honest comparisons matter more than ever. " +
   "That is why we verify every listing in the AIlico directory before it goes live.";
 
-interface Stats {
-  words: number;
-  characters: number;
-  charactersNoSpaces: number;
-  sentences: number;
-  paragraphs: number;
-  readingMinutes: number;
-  speakingMinutes: number;
-}
-
-function analyze(text: string, readingWpm: number): Stats {
-  const trimmed = text.trim();
-  const words = trimmed ? trimmed.split(/\s+/).filter(Boolean) : [];
-  const sentences = trimmed ? (trimmed.match(/[.!?]+(\s|$)/g) ?? []).length || (words.length ? 1 : 0) : 0;
-  const paragraphs = trimmed ? trimmed.split(/\n\s*\n/).filter((part) => part.trim()).length : 0;
-  const wordCount = words.length;
-  return {
-    words: wordCount,
-    characters: text.length,
-    charactersNoSpaces: text.replace(/\s/g, "").length,
-    sentences,
-    paragraphs,
-    readingMinutes: wordCount / readingWpm,
-    speakingMinutes: wordCount / 130,
-  };
-}
-
-function topKeywords(text: string): { word: string; count: number }[] {
-  const counts = new Map<string, number>();
-  for (const raw of text.toLowerCase().match(/[a-z][a-z'-]{2,}/g) ?? []) {
-    if (STOP_WORDS.has(raw)) continue;
-    counts.set(raw, (counts.get(raw) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([word, count]) => ({ word, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes <= 0) return "0 sec";
-  const totalSeconds = Math.round(minutes * 60);
-  if (totalSeconds < 60) return `${totalSeconds} sec`;
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return secs ? `${mins} min ${secs} sec` : `${mins} min`;
-}
-
 export function WordCounter() {
   const [text, setText] = useState("");
   const [readingWpm, setReadingWpm] = useState(225);
 
-  const stats = useMemo(() => analyze(text, readingWpm), [text, readingWpm]);
+  const stats = useMemo(() => analyzeText(text, readingWpm), [text, readingWpm]);
   const keywords = useMemo(() => topKeywords(text), [text]);
 
   const statCards: { label: string; value: string | number }[] = [

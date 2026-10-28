@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { BadgeCheck, BookOpen, HandCoins, Lock, Search, Target } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
-import { aiTools } from "@/lib/tools";
-import { LAST_VERIFIED } from "@/lib/tools";
+import { aiTools } from "@/data/tools";
+import { LAST_VERIFIED } from "@/data/tools";
 import { formatDate } from "@/lib/utils";
 
 export const metadata: Metadata = {

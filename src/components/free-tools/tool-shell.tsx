@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { FaqAccordion, type FaqItem } from "@/components/faq";
-import { freeTools } from "@/lib/free-tools";
+import { freeTools } from "@/data/free-tools";
 import { absoluteUrl } from "@/lib/site";
 
 interface ToolShellProps {

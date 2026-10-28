@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { toolCategories, getCategoryBySlug, toolsInCategory } from "@/lib/tools";
+import { toolCategories, getCategoryBySlug, toolsInCategory } from "@/data/tools";
 import { ToolCard } from "@/components/tool-card";
 import { site } from "@/lib/site";
 

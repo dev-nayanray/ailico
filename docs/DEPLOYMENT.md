@@ -1,130 +1,139 @@
 # Deployment Guide
 
-This guide covers the recommended low-cost deployment paths for a **commercial**
-website, the required environment variables, and the post-deploy checklist.
+This guide covers the recommended low-cost deployment path for a **commercial**
+website, required environment variables, database setup, and the post-deploy
+checklist.
 
 ## Before you deploy (one-time)
 
-1. **Buy/connect the domain** — `ailico.top` DNS should be editable wherever you
-   registered it.
-2. **Configure lead storage** (see below) — do not launch the contact form
-   without it.
-3. **Set `NEXT_PUBLIC_SITE_URL=https://ailico.top`** in your host's environment
-   variables so canonicals, sitemap, and OG tags use the production domain.
+1. **Domain** — `ailico.top` DNS must be editable where it is registered.
+2. **Supabase project** (free) — apply the migration (below) and copy env vars.
+3. **Set `NEXT_PUBLIC_SITE_URL=https://ailico.top`** so canonicals, sitemap,
+   RSS, and OG tags use the production domain.
 
 ## Choosing a host (commercial-use notes)
 
 | Host | Cost | Commercial use on free tier | Notes |
 | --- | --- | --- | --- |
-| **Cloudflare Pages + Workers** (recommended) | Free / pay-as-you-go | ✅ Allowed | Use the OpenNext Cloudflare adapter (`@opennextjs/cloudflare`). Free tier permits business use; generous bandwidth. |
-| **Vercel** | Pro $20/mo | ❌ Hobby tier is personal/non-commercial only | Zero-config for Next.js; upgrade to Pro before operating commercially. |
-| **Netlify** | Pro ~$19/mo | ❌ Free tier is personal/non-commercial | Good Next.js support via their runtime. |
-| **VPS (Hetzner/DigitalOcean)** | $4–12/mo | ✅ Full control | Run `pnpm build && pnpm start` behind Nginx/Caddy + PM2, or a Docker container. Most work, most control. |
+| **Cloudflare Pages + Workers** (recommended) | Free / pay-as-you-go | ✅ Allowed | Use the OpenNext Cloudflare adapter (`@opennextjs/cloudflare`). Rate limiting works per-isolate; set the Upstash vars for shared limits. |
+| **Vercel** | Pro $20/mo | ❌ Hobby tier is personal/non-commercial | Zero-config for Next.js; upgrade before operating commercially. |
+| **Netlify** | Pro ~$19/mo | ❌ Free tier is personal/non-commercial | Good Next.js runtime. |
+| **VPS (Hetzner/DigitalOcean)** | $4–12/mo | ✅ Full control | `pnpm build && pnpm start` behind Nginx/Caddy + PM2, or Docker. |
 
-**Recommendation for MVP:** Cloudflare Pages (free, commercial-safe). If you
-prefer the simplest Next.js workflow and the site starts earning, Vercel Pro is
-the low-friction paid option.
+**Cloudflare compatibility audit (done, not assumed):** the app uses no
+middleware, no Edge runtime pinning, no Node-only APIs in the render path, and
+plain `fetch` for Upstash — all supported by the Workers runtime. The
+`CF-Connecting-IP` header is preferred for rate-limit keys. In-memory rate
+limiting and event counters are per-isolate; enable Upstash for shared state.
 
-## Option A — Cloudflare Pages (free, recommended)
+## Database setup (Supabase free tier)
 
-```bash
-npm install -g @opennextjs/cloudflare   # or: pnpm add -g @opennextjs/cloudflare
-```
+The schema is version-controlled in `supabase/migrations/`.
 
-1. Commit the repo to GitHub (see below).
-2. In Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git,
-   pick the repo.
-3. Build settings (the adapter scaffolds these via `npx opennextjs-cloudflare build`):
-   - Build command: `npx opennextjs-cloudflare build`
-   - Output: `.open-next/`
-4. Add environment variables (see table below), then deploy.
-5. Add your custom domain `ailico.top` in the Pages project settings and follow
-   the DNS instructions.
-
-Rate limiting and the event counter are in-memory per isolate — fine for MVP
-volume. If you scale, move them to Cloudflare KV/Durable Objects or Upstash Redis.
-
-## Option B — VPS with Node (full control)
+**CLI route:**
 
 ```bash
-# On the server (Node 22+)
-git clone <your-repo> ailico && cd ailico
-pnpm install --frozen-lockfile
-pnpm build
-pm2 start "pnpm start -- -p 3000" --name ailico
-# Put Caddy or Nginx with a TLS cert in front; point ailico.top at the server IP
+supabase login
+supabase link --project-ref <your-project-ref>
+supabase db push          # applies supabase/migrations/*.sql
 ```
+
+**Dashboard route:** open the SQL editor and paste
+`supabase/migrations/0001_create_leads.sql`.
+
+The migration creates the `leads` table (id UUID, name, email, website,
+service, budget, message, status pipeline, source, timestamps, indexes),
+an `updated_at` trigger, and enables RLS **with no anon policies** — only the
+service-role key (used server-side) can read or write. Verify in
+Authentication → Policies that `leads` shows no public policies.
 
 ## Environment variables (production)
 
-| Variable | Value |
-| --- | --- |
-| `NEXT_PUBLIC_SITE_URL` | `https://ailico.top` |
-| `SUPABASE_URL` | `https://<project>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role key (server-side only) |
-| `CONTACT_WEBHOOK_URL` | optional Discord/Slack incoming webhook |
+| Variable | Public/Secret | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | Public | Canonical base URL |
+| `SUPABASE_URL` | Secret-ish (server) | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | **Secret** | Service-role key — server env only |
+| `CONTACT_WEBHOOK_URL` | Secret (server) | Optional https webhook for lead notifications |
+| `UPSTASH_REDIS_REST_URL` / `..._TOKEN` | Secret (server) | Optional shared rate limiting |
+| `TRUST_PROXY_HEADERS` | Public | `"true"` behind Cloudflare/proxy (default) |
 
-## Supabase lead storage setup (free tier)
+> Without Supabase **and** webhook configured, production contact submissions
+> return an honest "could not save" error (503) instead of silently losing
+> leads. Configure at least one before launch.
 
-1. Create a project at supabase.com, then run this in the SQL editor:
+## Option A — Cloudflare Pages (free, recommended)
 
-```sql
-create table if not exists leads (
-  id bigint generated by default as identity primary key,
-  name text not null,
-  email text not null,
-  website text,
-  service text not null,
-  budget text,
-  message text not null,
-  created_at timestamptz default now()
-);
+1. Commit the repo to GitHub (below).
+2. Workers & Pages → Create → Pages → Connect to Git.
+3. Build command: `npx opennextjs-cloudflare build`; output: `.open-next/`.
+4. Add the environment variables above, deploy, then attach the custom domain
+   `ailico.top` (Pages shows the DNS records to add).
+5. HTTPS is automatic; verify with `curl -I https://ailico.top`.
 
-alter table leads enable row level security;
--- No insert policy via anon key: only the service-role key (used server-side)
--- can write. Do NOT create a public insert policy.
+## Option B — VPS with Node
+
+```bash
+git clone <your-repo> ailico && cd ailico
+pnpm install --frozen-lockfile
+pnpm build
+pm2 start "pnpm exec next start -p 3000" --name ailico
+# Caddy/Nginx with TLS in front; point ailico.top at the server
 ```
 
-2. Copy **Project URL** and the **service_role** key (Settings → API) into your
-   host's environment variables. Never expose the service_role key to the client.
-3. Test: submit the contact form and confirm a row appears in Table Editor.
+## Testing & build commands
+
+```bash
+pnpm lint        # ESLint
+pnpm typecheck   # tsc --noEmit
+pnpm test        # Vitest unit + integration (94 tests)
+pnpm build       # Production build (72 routes)
+pnpm test:e2e    # Playwright: desktop Chromium + mobile WebKit (18 tests)
+                  # starts its own server on :3111 against the built app
+```
 
 ## Git / GitHub
-
-The project already has a git repository initialized with a `.gitignore`
-covering `.next`, `node_modules`, and `.env*`. To publish:
 
 ```bash
 cd ailico
 git add -A
-git commit -m "AIlico MVP: directory, free tools, services, blog, SEO"
-# Create a private repo on GitHub, then:
+git commit -m "Production boilerplate: persistence, security, tests, docs"
 git remote add origin https://github.com/<you>/ailico.git
 git push -u origin main
 ```
 
-Keep the repo **private** until launch; double-check no `.env.local` is committed
-(`git status` before pushing).
+Keep the repo private until launch; confirm `.env.local` is never committed
+(it is gitignored — verify with `git status` before pushing).
 
 ## Post-deploy checklist
 
-- [ ] `https://ailico.top` loads and the homepage OG preview renders
-- [ ] Contact form: submit a test lead → row appears in Supabase
+- [ ] `https://ailico.top` loads; `curl -I` shows the security headers + CSP
+- [ ] Contact form test lead → row appears in Supabase `leads`
 - [ ] `/sitemap.xml` lists production URLs; `/robots.txt` references it
-- [ ] Submit the sitemap in [Google Search Console](https://search.google.com/search-console)
-      (verify via DNS TXT record)
-- [ ] Check a tool page (e.g. `/ai-tools/claude`) and `/go/claude` redirect
-- [ ] Test on a real phone: nav menu, a free tool, the contact form
-- [ ] Bing Webmaster Tools submission (free extra index coverage)
-- [ ] Re-run `pnpm build` locally after any content change before pushing
+- [ ] `/feed.xml` returns the RSS feed
+- [ ] `/go/claude` redirects to the official site
+- [ ] Submit the sitemap in [Google Search Console](https://search.google.com/search-console) (DNS TXT verification)
+- [ ] Bing Webmaster Tools submission
+- [ ] Real-phone pass: nav menu, a free tool, the contact form
+- [ ] Full security checklist in [SECURITY.md](SECURITY.md) completed
 
-## Ongoing costs summary (MVP)
+## Rollback & recovery
+
+- **Cloudflare Pages / Vercel / Netlify:** redeploy the previous commit from
+  the deployments list (instant, no rebuild).
+- **VPS:** `git checkout <previous-tag> && pnpm install && pnpm build && pm2 restart ailico`.
+- **Database:** migrations are additive; roll back by reverting the migration
+  file and applying a corrective SQL in the editor. Back up `leads` before
+  schema changes (`supabase db dump` or Table Editor export).
+- **Bad content emergency:** fix forward with a commit — static pages
+  redeploy in minutes.
+
+## Ongoing costs (MVP)
 
 | Item | Cost |
 | --- | --- |
-| Domain (ailico.top) | ~$5–15/yr |
-| Hosting (Cloudflare free tier) | $0 |
+| Domain | ~$5–15/yr |
+| Cloudflare Pages | $0 |
 | Supabase (free tier) | $0 |
-| Total | **~$1/mo** (domain amortized) |
-
-Paid options only when justified: Vercel Pro ($20/mo) or a VPS ($4–12/mo).
+| Upstash Redis (free tier, optional) | $0 |
+| **Total** | **~$1/mo** (domain amortized) |

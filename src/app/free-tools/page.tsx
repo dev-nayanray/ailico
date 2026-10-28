@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Lock } from "lucide-react";
-import { freeTools } from "@/lib/free-tools";
+import { freeTools } from "@/data/free-tools";
 
 export const metadata: Metadata = {
   title: "Free Online Tools — Word Counter, JSON Formatter, UTM Builder & More",

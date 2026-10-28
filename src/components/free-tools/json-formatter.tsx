@@ -4,20 +4,11 @@ import { useState } from "react";
 import { AlertCircle, CheckCircle2, Eraser } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
-import { trackEvent } from "@/lib/track";
+import { trackEvent } from "@/lib/analytics/track";
+import { locateJsonError } from "@/lib/free-tools/json-utils";
 import { cn } from "@/lib/utils";
 
 const MAX_INPUT_BYTES = 1_000_000;
-
-function locateError(raw: string, message: string): string {
-  const positionMatch = message.match(/position (\d+)/i);
-  if (!positionMatch) return message;
-  const position = Number(positionMatch[1]);
-  const upTo = raw.slice(0, position);
-  const line = upTo.split("\n").length;
-  const column = position - upTo.lastIndexOf("\n");
-  return `${message.replace(/\s*in JSON at position \d+.*/i, "")} at line ${line}, column ${column}`;
-}
 
 export function JsonFormatter() {
   const [input, setInput] = useState("");
@@ -54,7 +45,7 @@ export function JsonFormatter() {
       }
     } catch (exception) {
       const message = exception instanceof Error ? exception.message : "Invalid JSON";
-      setError(locateError(input, message));
+      setError(locateJsonError(input, message));
     }
   }
 

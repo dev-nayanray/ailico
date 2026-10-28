@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ToolsDirectory } from "@/components/tools-directory";
-import { aiTools, toolCategories, toolCountByCategory } from "@/lib/tools";
+import { aiTools, toolCategories, toolCountByCategory } from "@/data/tools";
 import { SectionHeading } from "@/components/section-heading";
 
 export const metadata: Metadata = {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Check } from "lucide-react";
-import { services } from "@/lib/services";
+import { services } from "@/data/services";
 import { ButtonLink } from "@/components/ui/button";
 import { FaqAccordion } from "@/components/faq";
 import { SectionHeading } from "@/components/section-heading";

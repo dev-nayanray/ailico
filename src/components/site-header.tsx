@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { trackEvent } from "@/lib/track";
+import { trackEvent } from "@/lib/analytics/track";
 
 const navigation = [
   { href: "/ai-tools", label: "AI Tools" },

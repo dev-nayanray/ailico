@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ServiceDetails } from "@/components/service-details";
-import { getServiceBySlug } from "@/lib/services";
+import { getServiceBySlug } from "@/data/services";
 
 export const metadata: Metadata = {
   title: "Website Quick Fix — 3 Agreed Fixes for $79",

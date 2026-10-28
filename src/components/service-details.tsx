@@ -1,7 +1,7 @@
 import { Check, Clock, ClipboardList, UserCheck, X } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { FaqAccordion } from "@/components/faq";
-import { type Service, services } from "@/lib/services";
+import { type Service, services } from "@/data/services";
 
 const serviceFaqs: Record<string, { question: string; answer: string }[]> = {
   "website-quick-fix": [

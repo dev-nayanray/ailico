@@ -1,9 +1,9 @@
 import type { MetadataRoute } from "next";
 import { site } from "@/lib/site";
-import { aiTools, toolCategories } from "@/lib/tools";
-import { freeTools } from "@/lib/free-tools";
-import { services } from "@/lib/services";
-import { posts } from "@/lib/posts";
+import { aiTools, toolCategories } from "@/data/tools";
+import { freeTools } from "@/data/free-tools";
+import { services } from "@/data/services";
+import { publishedPosts } from "@/lib/posts";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -52,7 +52,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
   ]);
 
-  const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
+  const blogPages: MetadataRoute.Sitemap = publishedPosts().map((post) => ({
     url: `${site.url}/blog/${post.slug}`,
     lastModified: new Date(post.date),
     changeFrequency: "monthly",

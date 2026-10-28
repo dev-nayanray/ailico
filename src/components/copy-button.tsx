@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { trackEvent } from "@/lib/track";
+import { trackEvent } from "@/lib/analytics/track";
 
 export function CopyButton({
   value,

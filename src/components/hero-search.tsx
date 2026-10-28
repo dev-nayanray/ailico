@@ -3,9 +3,9 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
-import { aiTools } from "@/lib/tools";
-import { freeTools } from "@/lib/free-tools";
-import { trackEvent } from "@/lib/track";
+import { aiTools } from "@/data/tools";
+import { freeTools } from "@/data/free-tools";
+import { trackEvent } from "@/lib/analytics/track";
 
 interface Suggestion {
   label: string;

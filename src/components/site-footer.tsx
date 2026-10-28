@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
-import { services } from "@/lib/services";
-import { toolCategories } from "@/lib/tools";
-import { freeTools } from "@/lib/free-tools";
+import { services } from "@/data/services";
+import { toolCategories } from "@/data/tools";
+import { freeTools } from "@/data/free-tools";
 
 export function SiteFooter() {
   return (

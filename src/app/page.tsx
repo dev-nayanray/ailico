@@ -20,9 +20,9 @@ import { SectionHeading } from "@/components/section-heading";
 import { FaqAccordion } from "@/components/faq";
 import { ToolCard } from "@/components/tool-card";
 import { HeroSearch } from "@/components/hero-search";
-import { featuredTools, aiTools, LAST_VERIFIED } from "@/lib/tools";
-import { freeTools } from "@/lib/free-tools";
-import { services } from "@/lib/services";
+import { featuredTools, aiTools, LAST_VERIFIED } from "@/data/tools";
+import { freeTools } from "@/data/free-tools";
+import { services } from "@/data/services";
 import { sortedPosts } from "@/lib/posts";
 import { formatDate } from "@/lib/utils";
 

@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Eraser, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/copy-button";
-import { trackEvent } from "@/lib/track";
+import { trackEvent } from "@/lib/analytics/track";
+import { isValidHttpUrl, buildUtmUrl } from "@/lib/free-tools/utm";
 
 const sourcePresets = ["google", "facebook", "instagram", "linkedin", "twitter", "newsletter", "youtube"];
 
@@ -13,15 +14,6 @@ interface FieldErrors {
   source?: string;
   medium?: string;
   campaign?: string;
-}
-
-function isValidUrl(value: string): boolean {
-  try {
-    const url = new URL(value.trim());
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 export function UtmBuilder() {
@@ -35,7 +27,7 @@ export function UtmBuilder() {
 
   const errors: FieldErrors = {};
   const trimmedUrl = url.trim();
-  if (touched && trimmedUrl && !isValidUrl(trimmedUrl)) {
+  if (touched && trimmedUrl && !isValidHttpUrl(trimmedUrl)) {
     errors.url = "Enter a full URL including https:// (e.g. https://example.com/offer)";
   }
   if (touched && !trimmedUrl) {
@@ -51,20 +43,18 @@ export function UtmBuilder() {
     errors.campaign = "Campaign name is required so you can recognize it in reports.";
   }
 
-  const finalUrl = useMemo(() => {
-    if (!isValidUrl(trimmedUrl) || !source.trim() || !medium.trim() || !campaign.trim()) {
-      return "";
-    }
-    const params = new URLSearchParams();
-    params.set("utm_source", source.trim());
-    params.set("utm_medium", medium.trim());
-    params.set("utm_campaign", campaign.trim());
-    if (term.trim()) params.set("utm_term", term.trim());
-    if (content.trim()) params.set("utm_content", content.trim());
-    const base = new URL(trimmedUrl);
-    base.search = params.toString();
-    return base.toString();
-  }, [trimmedUrl, source, medium, campaign, term, content]);
+  const finalUrl = useMemo(
+    () =>
+      buildUtmUrl({
+        url: trimmedUrl,
+        source,
+        medium,
+        campaign,
+        term,
+        content,
+      }),
+    [trimmedUrl, source, medium, campaign, term, content]
+  );
 
   const mediumPresets = ["cpc", "email", "social", "display", "referral", "affiliate"];
 

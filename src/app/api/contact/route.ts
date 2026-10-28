@@ -1,63 +1,39 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { rateLimit, clientIpFromHeaders } from "@/lib/rate-limit";
+import { leadStorageConfig } from "@/lib/env";
+import { limit } from "@/lib/security/rate-limit";
+import { clientIpFromHeaders } from "@/lib/security/ip";
+import {
+  contactSchema,
+  logSafeSummary,
+  CONTACT_REQUEST_MAX_BYTES,
+} from "@/lib/validation/contact";
+import { getSupabaseServiceClient } from "@/lib/supabase/server";
 
 /**
  * Contact form submission endpoint.
  *
- * - Server-side validation with zod (never trust the client).
- * - Honeypot field for basic spam protection.
- * - Rate limiting: 5 submissions per hour per IP.
- * - Storage: Supabase table (if configured) and/or a webhook (if configured).
- *   Without either, submissions are logged server-side only — see README for
- *   the production configuration warning.
+ * Guarantees:
+ * - Server-side zod validation (client limits are mirrored, not trusted).
+ * - Request-size cap before parsing.
+ * - Honeypot: bot submissions get a plausible success and are discarded.
+ * - Rate limiting: per IP (per-hour) and per email (duplicate protection),
+ *   shared across instances when Upstash is configured.
+ * - Honest success semantics: `ok:true` is returned ONLY when storage
+ *   confirmed persistence (or in non-production log-only dev mode).
+ *   Failures are reported to the user with a retry path — never as success.
  */
 
-const contactSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Please enter your name.")
-    .max(100, "Name is too long."),
-  email: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .max(200)
-    .pipe(z.email("Please enter a valid email address.")),
-  website: z
-    .union([z.literal(""), z.url("Please enter a full URL, including https://").max(300)])
-    .optional(),
-  service: z.enum([
-    "website-quick-fix",
-    "landing-page-development",
-    "ai-workflow-setup",
-    "other",
-  ]),
-  budget: z
-    .union([
-      z.literal(""),
-      z.enum([
-        "Under $100",
-        "$100 – $250",
-        "$250 – $500",
-        "$500+",
-        "Not sure yet",
-      ]),
-    ])
-    .optional(),
-  message: z
-    .string()
-    .trim()
-    .min(20, "Please describe your project in at least 20 characters.")
-    .max(3000, "Please keep the description under 3000 characters."),
-  consent: z.literal(true, { error: "Please agree to the privacy policy." }),
-  // Honeypot: any non-empty value marks the submission as automated. The field
-  // accepts any string so bots get a success response and stop retrying.
-  company_website: z.string().max(300).optional(),
-});
+const IP_LIMIT = 5;
+const IP_WINDOW_MS = 60 * 60 * 1000;
+const EMAIL_LIMIT = 2;
+const EMAIL_WINDOW_MS = 60 * 60 * 1000;
 
-async function persistLead(payload: z.infer<typeof contactSchema>) {
+interface PersistOutcome {
+  persisted: boolean;
+  detail: "supabase" | "webhook" | "dev-log";
+}
+
+async function persistLead(payload: ReturnType<typeof contactSchema.parse>): Promise<PersistOutcome> {
   const record = {
     name: payload.name,
     email: payload.email,
@@ -65,95 +41,143 @@ async function persistLead(payload: z.infer<typeof contactSchema>) {
     service: payload.service,
     budget: payload.budget || null,
     message: payload.message,
-    created_at: new Date().toISOString(),
+    source: "contact-form",
   };
 
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (supabaseUrl && supabaseKey) {
-    try {
-      const response = await fetch(`${supabaseUrl}/rest/v1/leads`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: supabaseKey,
-          Authorization: `Bearer ${supabaseKey}`,
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify(record),
-      });
-      if (!response.ok) {
-        console.error("[contact] Supabase persist failed:", response.status);
+  const storage = leadStorageConfig();
+  let supabaseOk = false;
+
+  if (storage.mode === "supabase") {
+    const supabase = getSupabaseServiceClient();
+    if (supabase) {
+      const { error } = await supabase.from("leads").insert(record);
+      if (error) {
+        console.error("[contact] Supabase insert failed:", error.message);
       } else {
-        return "supabase";
+        supabaseOk = true;
       }
-    } catch (error) {
-      console.error("[contact] Supabase persist error:", error);
     }
   }
 
-  const webhookUrl = process.env.CONTACT_WEBHOOK_URL;
-  if (webhookUrl) {
+  // Optional notification when Supabase is the system of record.
+  if (storage.mode === "supabase" && storage.webhook) {
     try {
-      await fetch(webhookUrl, {
+      const response = await fetch(storage.webhook, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "new_lead", lead: record }),
       });
-      return "webhook";
-    } catch (error) {
-      console.error("[contact] Webhook notify error:", error);
+      if (!response.ok) console.error("[contact] Webhook notify failed:", response.status);
+    } catch (notifyError) {
+      // Notification failure must not fail an already-persisted lead.
+      console.error("[contact] Webhook notify error:", notifyError);
     }
   }
 
-  console.warn(
-    "[contact] No storage configured (SUPABASE_URL/CONTACT_WEBHOOK_URL unset). Lead logged to server console only — configure storage before going to production:",
-    JSON.stringify(record)
-  );
-  return "logged";
+  if (supabaseOk) return { persisted: true, detail: "supabase" };
+
+  if (storage.mode === "webhook") {
+    // Webhook-only mode: the notification itself is the delivery. If the
+    // fetch above threw, we cannot confirm the owner received anything.
+    try {
+      const response = await fetch(storage.webhook, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "new_lead", lead: record }),
+      });
+      if (response.ok) return { persisted: true, detail: "webhook" };
+      console.error("[contact] Webhook delivery failed:", response.status);
+    } catch (deliverError) {
+      console.error("[contact] Webhook delivery error:", deliverError);
+    }
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      "[contact] DEV MODE: no storage configured. Lead logged briefly (summary only):",
+      logSafeSummary(payload)
+    );
+    return { persisted: true, detail: "dev-log" };
+  }
+
+  return { persisted: false, detail: "dev-log" };
+}
+
+function errorResponse(
+  message: string,
+  status: number,
+  extraHeaders?: Record<string, string>
+) {
+  return NextResponse.json({ ok: false, error: message }, { status, headers: extraHeaders });
 }
 
 export async function POST(request: Request) {
-  const ip = clientIpFromHeaders(request.headers);
-  const limit = rateLimit(`contact:${ip}`, 5, 60 * 60 * 1000);
-  if (!limit.ok) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Too many submissions from your connection. Please try again later.",
-      },
-      {
-        status: 429,
-        headers: { "Retry-After": String(limit.retryAfterSeconds) },
-      }
-    );
+  // Request-size cap before parsing the body.
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > CONTACT_REQUEST_MAX_BYTES) {
+    return errorResponse("Request is too large.", 413);
   }
 
   let body: unknown;
   try {
-    body = await request.json();
+    const raw = await request.text();
+    if (raw.length > CONTACT_REQUEST_MAX_BYTES) {
+      return errorResponse("Request is too large.", 413);
+    }
+    body = JSON.parse(raw);
   } catch {
-    return NextResponse.json(
-      { ok: false, error: "Invalid request body." },
-      { status: 400 }
+    return errorResponse("Invalid request body.", 400);
+  }
+
+  const ip = clientIpFromHeaders(request.headers);
+
+  // Per-IP limit.
+  const ipLimit = await limit(`contact-ip:${ip}`, IP_LIMIT, IP_WINDOW_MS);
+  if (!ipLimit.ok) {
+    return errorResponse(
+      "Too many submissions from your connection. Please try again later.",
+      429,
+      { "Retry-After": String(ipLimit.retryAfterSeconds) }
     );
   }
 
   const parsed = contactSchema.safeParse(body);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    return NextResponse.json(
-      { ok: false, error: first?.message ?? "Please check the form and try again." },
-      { status: 400 }
+    return errorResponse(
+      first?.message ?? "Please check the form and try again.",
+      400
     );
   }
 
-  // Honeypot filled → silently accept but do nothing (do not tip off bots).
+  // Honeypot filled → pretend success, store nothing.
   if (parsed.data.company_website) {
     return NextResponse.json({ ok: true });
   }
 
-  await persistLead(parsed.data);
+  // Per-email duplicate protection (same person re-submitting).
+  const emailKey = `contact-email:${parsed.data.email}`;
+  const emailLimit = await limit(emailKey, EMAIL_LIMIT, EMAIL_WINDOW_MS);
+  if (!emailLimit.ok) {
+    return errorResponse(
+      "We already received your message. Please wait a bit before sending another, or reply to our email.",
+      429,
+      { "Retry-After": String(emailLimit.retryAfterSeconds) }
+    );
+  }
+
+  const outcome = await persistLead(parsed.data);
+
+  if (!outcome.persisted) {
+    console.error("[contact] Submission lost: no storage configured in production.");
+    return errorResponse(
+      "We could not save your message right now. Please try again in a few minutes.",
+      503
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }
+
+// Small export for tests that want the limits without hitting the route.
+export const __limits = { IP_LIMIT, IP_WINDOW_MS, EMAIL_LIMIT, EMAIL_WINDOW_MS };

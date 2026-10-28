@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getToolBySlug, toolDestination } from "@/lib/tools";
+import { getToolBySlug, toolDestination } from "@/data/tools";
 
 /**
  * Outbound click redirect: /go/<tool-slug>
